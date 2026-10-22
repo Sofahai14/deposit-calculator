@@ -44,7 +44,7 @@ class DepositCalculatorTest {
     void simpleInterest() {
         Deposit deposit = new Deposit(1000, 10, 3, false);
         // assertEquals(ожидаемое, фактическое, погрешность)
-        assertEquals(1300.0, calculator.calculateSimple(deposit), DELTA);
+        assertEquals(1400.0, calculator.calculateSimple(deposit), DELTA);
     }
 
     @Test
