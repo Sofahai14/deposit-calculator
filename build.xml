@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    build.xml - СЦЕНАРИЙ СБОРКИ APACHE ANT.
+
+    Ant - ПРОЦЕДУРНЫЙ (императивный) инструмент: мы сами по шагам описываем,
+    ЧТО и В КАКОМ ПОРЯДКЕ делать. Каждый шаг называется target ("цель").
+    Атрибут depends="..." говорит, какие target'ы нужно выполнить ДО этого.
+
+    name    - имя проекта (используется в имени JAR-файла);
+    default - какой target выполнится, если написать просто "ant";
+    basedir - базовая папка проекта ("." = папка, где лежит build.xml).
+-->
+<project name="DepositCalculator" default="all" basedir=".">
+
+    <description>Калькулятор банковских вкладов - сборка Apache Ant</description>
+
+    <!-- ================= СВОЙСТВА (переменные) =================
+         property - это переменная. Дальше её значение подставляется
+         через ${имя}. Так пути описаны в одном месте. -->
+    <property name="src.dir"          value="src/main/java"/>     <!-- исходный код -->
+    <property name="test.src.dir"     value="src/test/java"/>     <!-- код тестов -->
+    <property name="build.dir"        value="build"/>             <!-- всё, что создаёт сборка -->
+    <property name="classes.dir"      value="${build.dir}/classes"/>
+    <property name="test.classes.dir" value="${build.dir}/test-classes"/>
+    <property name="reports.dir"      value="${build.dir}/reports"/>
+    <property name="jar.dir"          value="${build.dir}/jar"/>
+    <property name="dist.dir"         value="${build.dir}/dist"/>
+    <property name="lib.dir"          value="lib"/>               <!-- JAR-библиотеки JUnit 5 -->
+    <property name="main.class"       value="by.student.deposit.Main"/>
+
+    <!-- Версии библиотек JUnit 5 (зависимости для Ant мы подключаем ВРУЧНУЮ) -->
+    <property name="junit.version"      value="5.14.4"/>
+    <property name="platform.version"   value="1.14.4"/>
+    <property name="opentest4j.version" value="1.3.0"/>
+    <property name="apiguardian.version" value="1.1.2"/>
+    <property name="maven.repo"         value="https://repo1.maven.org/maven2"/>
+
+    <!-- ================= CLASSPATH =================
+         Classpath - список мест, где Java ищет классы.
+         В Ant он описывается ЯВНО: скомпилированный код + тесты + все JAR из lib/.
+         (В Maven classpath строится автоматически из <dependencies>.) -->
+    <path id="test.classpath">
+        <pathelement location="${classes.dir}"/>
+        <pathelement location="${test.classes.dir}"/>
+        <fileset dir="${lib.dir}" erroronmissingdir="false">
+            <include name="*.jar"/>
+        </fileset>
+    </path>
+
+    <!-- ================= TARGET'Ы ================= -->
+
+    <!-- clean: удалить папку build. НЕ вызывается автоматически из compile. -->
+    <target name="clean" description="Удалить результаты сборки">
+        <delete dir="${build.dir}"/>
+        <echo message="Сборочная директория очищена."/>
+    </target>
+
+    <!-- init: создать нужные папки (без скрытой очистки!). -->
+    <target name="init" description="Создать каталоги сборки">
+        <mkdir dir="${classes.dir}"/>
+        <mkdir dir="${test.classes.dir}"/>
+        <mkdir dir="${reports.dir}"/>
+        <mkdir dir="${jar.dir}"/>
+    </target>
+
+    <!-- libs: скачать JAR-файлы JUnit 5 в папку lib/ из Maven Central.
+         skipexisting="true" - если файл уже скачан, повторно не качаем.
+         Это наглядно показывает РУЧНОЕ управление зависимостями в Ant. -->
+    <target name="libs" description="Скачать библиотеки JUnit 5 в lib/">
+        <mkdir dir="${lib.dir}"/>
+        <get dest="${lib.dir}" skipexisting="true" usetimestamp="false">
+            <url url="${maven.repo}/org/junit/jupiter/junit-jupiter-api/${junit.version}/junit-jupiter-api-${junit.version}.jar"/>
+            <url url="${maven.repo}/org/junit/jupiter/junit-jupiter-engine/${junit.version}/junit-jupiter-engine-${junit.version}.jar"/>
+            <url url="${maven.repo}/org/junit/jupiter/junit-jupiter-params/${junit.version}/junit-jupiter-params-${junit.version}.jar"/>
+            <url url="${maven.repo}/org/junit/platform/junit-platform-commons/${platform.version}/junit-platform-commons-${platform.version}.jar"/>
+            <url url="${maven.repo}/org/junit/platform/junit-platform-engine/${platform.version}/junit-platform-engine-${platform.version}.jar"/>
+            <url url="${maven.repo}/org/junit/platform/junit-platform-launcher/${platform.version}/junit-platform-launcher-${platform.version}.jar"/>
+            <url url="${maven.repo}/org/opentest4j/opentest4j/${opentest4j.version}/opentest4j-${opentest4j.version}.jar"/>
+            <url url="${maven.repo}/org/apiguardian/apiguardian-api/${apiguardian.version}/apiguardian-api-${apiguardian.version}.jar"/>
+        </get>
+        <echo message="Библиотеки JUnit 5 находятся в папке lib/."/>
+    </target>
+
+    <!-- compile: скомпилировать основной код (.java -> .class).
+         release="21" - байт-код для Java 21; encoding - чтобы кириллица не ломалась;
+         includeantruntime="false" - не подмешивать в classpath библиотеки самого Ant. -->
+    <target name="compile" depends="init" description="Компиляция приложения">
+        <javac srcdir="${src.dir}" destdir="${classes.dir}"
+               encoding="UTF-8" release="21" includeantruntime="false"/>
+        <echo message="Основной код скомпилирован."/>
+    </target>
+
+    <!-- compile-tests: скомпилировать тесты. Им нужны основной код и JUnit,
+         поэтому используется test.classpath. -->
+    <target name="compile-tests" depends="compile,libs" description="Компиляция тестов">
+        <javac srcdir="${test.src.dir}" destdir="${test.classes.dir}"
+               encoding="UTF-8" release="21" includeantruntime="false">
+            <classpath refid="test.classpath"/>
+        </javac>
+        <echo message="Тестовый код скомпилирован."/>
+    </target>
+
+    <!-- test: запустить тесты JUnit 5 через junitlauncher.
+         Старая задача <junit> рассчитана на JUnit 3/4, поэтому для JUnit 5
+         используется <junitlauncher>, который запускает JUnit Platform.
+         failureProperty="tests.failed" - если хоть один тест упал, Ant запоминает
+         это в свойстве tests.failed. Сразу после тестов задача <fail> проверяет
+         это свойство и ОСТАНАВЛИВАЕТ сборку (BUILD FAILED) с понятным сообщением.
+         Так ошибка теста становится ошибкой сборки (то же, что haltOnFailure="true",
+         но сообщение об ошибке понятнее). -->
+    <target name="test" depends="compile-tests" description="Запуск тестов JUnit 5">
+        <mkdir dir="${reports.dir}/xml"/>
+        <junitlauncher printSummary="true">
+            <classpath refid="test.classpath"/>
+            <testclasses outputDir="${reports.dir}/xml" includeEngines="junit-jupiter"
+                         failureProperty="tests.failed">
+                <fileset dir="${test.classes.dir}">
+                    <include name="**/*Test.class"/>
+                </fileset>
+                <!-- XML-результаты (формат TEST-*.xml) для junitreport и CI -->
+                <listener type="legacy-xml" sendSysOut="true" sendSysErr="true"/>
+                <!-- Текстовый файл TEST-*.txt с результатом каждого теста -->
+                <listener type="legacy-plain" sendSysOut="true"/>
+            </testclasses>
+        </junitlauncher>
+        <!-- Если тесты упали - остановить сборку (ненулевой код возврата для CI) -->
+        <fail if="tests.failed"
+              message="Есть упавшие тесты! Подробности: build/reports/xml/TEST-*.txt"/>
+        <echo message="JUnit 5 тесты выполнены."/>
+    </target>
+
+    <!-- report: из XML-файлов сделать HTML-отчёт для человека. -->
+    <target name="report" depends="test" description="Формирование HTML-отчёта">
+        <mkdir dir="${reports.dir}/html"/>
+        <junitreport todir="${reports.dir}/xml">
+            <fileset dir="${reports.dir}/xml" includes="TEST-*.xml"/>
+            <report format="frames" todir="${reports.dir}/html"/>
+        </junitreport>
+        <echo message="HTML-отчёт создан: build/reports/html/index.html"/>
+    </target>
+
+    <!-- jar: упаковать скомпилированные классы в JAR.
+         depends="test" - JAR создаётся ТОЛЬКО если тесты прошли.
+         Main-Class в манифесте позволяет запускать "java -jar". -->
+    <target name="jar" depends="test" description="Создание JAR">
+        <jar destfile="${jar.dir}/${ant.project.name}.jar" basedir="${classes.dir}">
+            <manifest>
+                <attribute name="Main-Class" value="${main.class}"/>
+            </manifest>
+        </jar>
+        <echo message="JAR создан: ${jar.dir}/${ant.project.name}.jar"/>
+    </target>
+
+    <!-- run: запустить приложение из JAR в отдельной JVM (fork="true"). -->
+    <target name="run" depends="jar" description="Запуск приложения">
+        <java jar="${jar.dir}/${ant.project.name}.jar" fork="true">
+            <jvmarg value="-Dstdout.encoding=UTF-8"/>
+            <jvmarg value="-Dstderr.encoding=UTF-8"/>
+        </java>
+    </target>
+
+    <!-- dist (дополнительно): ZIP-архив для поставки - JAR + исходники + build.xml. -->
+    <target name="dist" depends="jar" description="Создать ZIP-архив дистрибутива">
+        <mkdir dir="${dist.dir}"/>
+        <zip destfile="${dist.dir}/${ant.project.name}.zip">
+            <fileset dir="${jar.dir}" includes="*.jar"/>
+            <fileset dir="." includes="src/**,build.xml,pom.xml,README.md"/>
+        </zip>
+        <echo message="Дистрибутив создан: ${dist.dir}/${ant.project.name}.zip"/>
+    </target>
+
+    <!-- all: полный воспроизводимый цикл. clean указан ЯВНО первым. -->
+    <target name="all" depends="clean,report,jar"
+            description="Очистить, собрать, протестировать, создать отчёт и JAR">
+        <echo message="Ant: полная сборка завершена успешно."/>
+    </target>
+
+</project>

@@ -1,0 +1,61 @@
+// build.gradle - СЦЕНАРИЙ СБОРКИ GRADLE (язык Groovy DSL).
+// Gradle сочетает идеи Ant (гибкие задачи - tasks) и Maven (соглашения,
+// репозитории, зависимости). Описание короче, чем XML.
+
+// Плагины: 'java' - компиляция, тесты, jar; 'application' - задача run.
+plugins {
+    id 'java'
+    id 'application'
+}
+
+// Координаты проекта (как groupId/version в Maven)
+group = 'by.student'
+version = '1.0.0-SNAPSHOT'
+
+// Откуда скачивать библиотеки - из Maven Central (того же, что у Maven)
+repositories {
+    mavenCentral()
+}
+
+// Toolchain: собирать проект именно JDK 21
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+// Кодировка исходников UTF-8 (иначе на Windows кириллица в коде ломается)
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// Зависимости: testImplementation = только для тестов (как scope=test в Maven)
+dependencies {
+    testImplementation('org.junit.jupiter:junit-jupiter:5.14.4')
+    // В Gradle 9 launcher JUnit Platform нужно указывать явно, иначе тесты не запустятся
+    testRuntimeOnly('org.junit.platform:junit-platform-launcher:1.14.4')
+}
+
+// Главный класс для задачи run
+application {
+    mainClass = 'by.student.deposit.Main'
+}
+
+// Настройка тестов
+test {
+    useJUnitPlatform()                         // запускать тесты через JUnit Platform (JUnit 5)
+    testLogging {
+        events 'passed', 'skipped', 'failed'   // печатать в консоль результат каждого теста
+    }
+    reports {
+        html.required = true                   // HTML-отчёт: build/reports/tests/test/index.html
+        junitXml.required = true               // XML-отчёт: build/test-results/test/*.xml
+    }
+}
+
+// Main-Class в манифесте JAR (чтобы работал java -jar)
+jar {
+    manifest {
+        attributes('Main-Class': 'by.student.deposit.Main')
+    }
+}

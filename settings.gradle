@@ -1,0 +1,3 @@
+// settings.gradle - обязательный файл в корне Gradle-проекта.
+// Задаёт официальное имя проекта (язык - Groovy DSL).
+rootProject.name = 'deposit-calculator'

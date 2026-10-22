@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    pom.xml - МОДЕЛЬ ПРОЕКТА MAVEN (POM = Project Object Model).
+
+    Maven - ДЕКЛАРАТИВНЫЙ инструмент: мы НЕ пишем шаги сборки, а ОПИСЫВАЕМ проект
+    (как называется, какая Java, какие библиотеки и плагины нужны).
+    Шаги (compile, test, package...) Maven уже знает - это его жизненный цикл (lifecycle).
+    Папки src/main/java и src/test/java Maven знает "по соглашению"
+    (Convention over Configuration), поэтому их здесь не указываем.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <!-- Версия формата POM (для Maven 3 всегда 4.0.0). -->
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- КООРДИНАТЫ проекта - "адрес" артефакта в репозитории Maven:
+         groupId (организация) + artifactId (имя проекта) + version (версия).
+         SNAPSHOT = версия в разработке (ещё не релиз). -->
+    <groupId>by.student</groupId>
+    <artifactId>deposit-calculator</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+
+    <!-- Результат сборки - JAR-файл. -->
+    <packaging>jar</packaging>
+    <name>Deposit Calculator</name>
+    <description>Калькулятор банковских вкладов</description>
+
+    <!-- СВОЙСТВА - переменные, которые используются ниже через ${...}. -->
+    <properties>
+        <!-- Целевая версия Java -->
+        <maven.compiler.release>21</maven.compiler.release>
+        <!-- Кодировка исходников и отчётов - чтобы кириллица не ломалась -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <!-- Версия JUnit указывается в одном месте -->
+        <junit.version>5.14.4</junit.version>
+    </properties>
+
+    <!-- ЗАВИСИМОСТИ (dependencies) - БИБЛИОТЕКИ, нужные проекту.
+         Maven сам скачивает их из Maven Central в локальный репозиторий
+         (папка C:\Users\<имя>\.m2\repository) вместе со всеми их зависимостями. -->
+    <dependencies>
+        <!-- junit-jupiter = API для написания тестов + engine для их запуска
+             + params для параметризованных тестов.
+             scope=test: библиотека нужна ТОЛЬКО для тестов и НЕ попадает
+             в итоговое приложение. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!-- ПЛАГИНЫ (plugins) - расширения САМОГО Maven, которые выполняют
+             работу на фазах жизненного цикла. Версии фиксируем явно -
+             так сборка воспроизводима (одинакова на любом компьютере). -->
+        <plugins>
+
+            <!-- 1. Компилятор Java: работает на фазах compile и test-compile. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
+                <configuration>
+                    <release>21</release>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- 2. Surefire: запускает unit-тесты на фазе test.
+                 Результаты: target/surefire-reports (*.xml и *.txt).
+                 Если тест упал - BUILD FAILURE и дальше (package) Maven не идёт. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.6.0</version>
+            </plugin>
+
+            <!-- 3. Surefire Report: делает из XML-результатов HTML-страницу.
+                 Запускается ОТДЕЛЬНОЙ командой: mvn surefire-report:report
+                 Результат (для версии 3.6.0): target/reports/surefire.html -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-report-plugin</artifactId>
+                <version>3.6.0</version>
+            </plugin>
+
+            <!-- 4. JAR-плагин: упаковывает классы в JAR на фазе package.
+                 mainClass записывается в MANIFEST.MF, чтобы работал "java -jar". -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.5.1</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>by.student.deposit.Main</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <!-- 5. (Дополнительно) JaCoCo - покрытие кода тестами.
+                 prepare-agent подключается перед тестами, report строит
+                 HTML-отчёт target/site/jacoco/index.html на фазе verify. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.14</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 6. (Дополнительно, инструмент качества) Checkstyle - СТАТИЧЕСКИЙ
+                 АНАЛИЗ кода (проверка стиля без запуска программы).
+                 Правила - в файле checkstyle.xml. Проверка выполняется на фазе verify;
+                 при нарушении правил сборка падает (failOnViolation=true). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>3.6.0</version>
+                <configuration>
+                    <configLocation>checkstyle.xml</configLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <failOnViolation>true</failOnViolation>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>checkstyle-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
+</project>
