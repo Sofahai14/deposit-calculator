@@ -1,0 +1,53 @@
+# .github/workflows/maven.yml - СЦЕНАРИЙ CI ДЛЯ GITHUB ACTIONS (формат YAML).
+# Это НЕ файл Maven. GitHub Actions - сервис GitHub, который при каждом
+# изменении репозитория сам запускает Maven на чистом облачном сервере.
+# В YAML важны ОТСТУПЫ (только пробелы!) - они задают вложенность.
+
+name: Java CI with Maven          # название, видно на вкладке Actions
+
+on:                                # КОГДА запускать (триггеры)
+  push:
+    branches: [ "main" ]           # при отправке коммита в ветку main
+  pull_request:
+    branches: [ "main" ]           # при создании pull request в main
+  workflow_dispatch:               # + кнопка ручного запуска "Run workflow"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest         # чистая виртуальная машина Ubuntu Linux
+    steps:
+      # Шаг 1. Скачать код репозитория на виртуальную машину
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Шаг 2. Установить JDK 21 (дистрибутив Temurin) + кэш библиотек Maven
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Шаг 3. Та же команда, что студент запускает локально.
+      # -B = batch mode (без интерактивного вывода). Если тест упал -
+      # Maven вернёт ненулевой код, и шаг (и вся сборка) станет красным FAILED.
+      - name: Build and test
+        run: mvn -B clean verify
+
+      # Шаг 4. Сохранить отчёты тестов как artifact.
+      # if: always() - выполнять ДАЖЕ если предыдущий шаг упал
+      # (именно тогда отчёты нужнее всего - чтобы понять причину).
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+
+      # Шаг 5 (дополнительно). Сохранить собранный JAR, если сборка успешна.
+      - name: Upload JAR
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deposit-calculator-jar
+          path: target/*.jar
